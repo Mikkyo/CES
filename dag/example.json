@@ -1,0 +1,75 @@
+{
+	"name": "example",
+	"tasks": [
+		{
+			"name": "A",
+			"duration": 20,
+			"requiredResource": [8, 16384],
+			"dataLocation": 1,
+			"parentTasks": []
+		},
+		{
+			"name": "B",
+			"duration": 26,
+			"requiredResource": [8, 10240],
+			"parentTasks": []
+		},
+		{
+			"name": "C",
+			"duration": 14,
+			"requiredResource": [6, 8192],
+			"parentTasks": []
+		},
+		{
+			"name": "D",
+			"duration": 8,
+			"requiredResource": [4, 4096],
+			"parentTasks": ["A"]
+		},
+		{
+			"name": "E",
+			"duration": 27,
+			"requiredResource": [10, 12288],
+			"dataLocation": 2,
+			"parentTasks": ["A"]
+		},
+		{
+			"name": "F",
+			"duration": 12,
+			"requiredResource": [6, 4096],
+			"dataLocation": 2,
+			"parentTasks": ["B"]
+		},
+		{
+			"name": "G",
+			"duration": 12,
+			"requiredResource": [6, 4096],
+			"parentTasks": ["B"]
+		},
+		{
+			"name": "H",
+			"duration": 10,
+			"requiredResource": [4, 4096],
+			"dataLocation": 1,
+			"parentTasks": ["C"]
+		},
+		{
+			"name": "I",
+			"duration": 6,
+			"requiredResource": [2, 3072],
+			"parentTasks": ["D", "E"]
+		},
+		{
+			"name": "J",
+			"duration": 11,
+			"requiredResource": [4, 6144],
+			"parentTasks": ["F", "G"]
+		},
+		{
+			"name": "K",
+			"duration": 5,
+			"requiredResource": [1, 2048],
+			"parentTasks": ["H"]
+		}
+	]
+}
