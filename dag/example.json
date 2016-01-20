@@ -4,72 +4,90 @@
 		{
 			"name": "A",
 			"duration": 20,
-			"requiredResource": [8, 16384],
-			"dataLocation": 1,
+			"requiredResources": [8, 16384],
+			"dataNodeId": 1,
 			"parentTasks": []
 		},
 		{
 			"name": "B",
 			"duration": 26,
-			"requiredResource": [8, 10240],
+			"requiredResources": [8, 10240],
 			"parentTasks": []
 		},
 		{
 			"name": "C",
 			"duration": 14,
-			"requiredResource": [6, 8192],
+			"requiredResources": [6, 8192],
 			"parentTasks": []
 		},
 		{
 			"name": "D",
 			"duration": 8,
-			"requiredResource": [4, 4096],
+			"requiredResources": [4, 4096],
 			"parentTasks": ["A"]
 		},
 		{
 			"name": "E",
 			"duration": 27,
-			"requiredResource": [10, 12288],
-			"dataLocation": 2,
+			"requiredResources": [10, 12288],
+			"dataNodeId": 2,
 			"parentTasks": ["A"]
 		},
 		{
 			"name": "F",
 			"duration": 12,
-			"requiredResource": [6, 4096],
-			"dataLocation": 2,
+			"requiredResources": [6, 4096],
+			"dataNodeId": 2,
 			"parentTasks": ["B"]
 		},
 		{
 			"name": "G",
 			"duration": 12,
-			"requiredResource": [6, 4096],
+			"requiredResources": [6, 4096],
 			"parentTasks": ["B"]
 		},
 		{
 			"name": "H",
 			"duration": 10,
-			"requiredResource": [4, 4096],
-			"dataLocation": 1,
+			"requiredResources": [4, 4096],
+			"dataNodeId": 1,
 			"parentTasks": ["C"]
 		},
 		{
 			"name": "I",
 			"duration": 6,
-			"requiredResource": [2, 3072],
+			"requiredResources": [2, 3072],
 			"parentTasks": ["D", "E"]
 		},
 		{
 			"name": "J",
 			"duration": 11,
-			"requiredResource": [4, 6144],
+			"requiredResources": [4, 6144],
 			"parentTasks": ["F", "G"]
 		},
 		{
 			"name": "K",
 			"duration": 5,
-			"requiredResource": [1, 2048],
+			"requiredResources": [1, 2048],
 			"parentTasks": ["H"]
 		}
 	]
 }
+
+
+Task {
+	name: "{}"
+	requiredResources: {}
+	duration: {}
+	dataNodeId: {}
+	parentTasks: [{}]
+	childTasks: [{}]
+	dag: "{}"
+	minStartDate: {}
+	maxStartDate: {}
+	priority: {}
+	status "{}"
+}
+
+
+Task {\n\tname: \"{}\"\n\trequiredResources: {}\n\tduration: {}\n\tdataNodeId: {}\n\tparentTasks: [{}]\n\tchildTasks: [{}]\n\tdag: \"{}\"\n\tminStartDate: {}\n\tmaxStartDate: {}\n\tpriority: {}\n\tstatus \"{}\"\n}
