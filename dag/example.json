@@ -73,21 +73,3 @@
 		}
 	]
 }
-
-
-Task {
-	name: "{}"
-	requiredResources: {}
-	duration: {}
-	dataNodeId: {}
-	parentTasks: [{}]
-	childTasks: [{}]
-	dag: "{}"
-	minStartDate: {}
-	maxStartDate: {}
-	priority: {}
-	status "{}"
-}
-
-
-Task {\n\tname: \"{}\"\n\trequiredResources: {}\n\tduration: {}\n\tdataNodeId: {}\n\tparentTasks: [{}]\n\tchildTasks: [{}]\n\tdag: \"{}\"\n\tminStartDate: {}\n\tmaxStartDate: {}\n\tpriority: {}\n\tstatus \"{}\"\n}
