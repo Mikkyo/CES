@@ -89,8 +89,17 @@ public class TaskDAG {
 	 * @param task The task to add.
 	 */
 	public void addTask(Task task) {
+		if (tasks.contains(task)) {
+			LOGGER.error("Attempt to add the task {} which is already in DAG {}",
+					task.getName(), getName());
+			return;
+		}
 		tasks.add(task);
-		// check if name does not already exist
+		// Setup child tasks
+		task.clearChildTasks();
+		for (Task parentTask : tasks) {
+			
+		}
 		update();
 	}
 	
@@ -101,6 +110,35 @@ public class TaskDAG {
 		// TODO: minStartDate
 		// TODO: maxStartDate
 		// TODO: priority
+		int maxStartDate = 0;
+	}
+	
+	/**
+	 * Returns the list of root tasks in the task DAG.
+	 * @return the list of root tasks.
+	 */
+	public ArrayList<Task> getRootTasks() {
+		ArrayList<Task> rootTasks = new ArrayList<Task>();
+		for (Task task : tasks) {
+			if (task.isRoot()) {
+				rootTasks.add(task);
+			}
+		}
+		return rootTasks;
+	}
+	
+	/**
+	 * Returns the list of leaf tasks in the task DAG.
+	 * @return the list of lead tasks.
+	 */
+	public ArrayList<Task> getLeafTasks() {
+		ArrayList<Task> leafTasks = new ArrayList<Task>();
+		for (Task task : tasks) {
+			if (task.isLeaf()) {
+				leafTasks.add(task);
+			}
+		}
+		return leafTasks;
 	}
 	
 	/**
