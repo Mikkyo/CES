@@ -19,31 +19,16 @@
 
 package com.polytech.hpc.ces;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * Represents a task status in the task DAG execution pipeline.
- * @enum
+ * Represents a node in the cluster.
+ * @class
  * @author Nicolas
  */
-public enum TaskStatus {
-	UNKNOWN,  // The task is waiting for being updated in the task DAG.
-	PENDING,  // The task is waiting for other tasks to finish.
-	READY,    // The task is ready to be run.
-	RUNNING,  // The task is running.
-	FINISHED; // The task is finished.
+public class Node {
+	private static final Logger LOGGER = LoggerFactory.getLogger(Node.class);
 	
-	/**
-	 * Gets the string representation of a task status.
-	 * @param status The input task status.
-	 * @return a string representing the task status.
-	 */
-	public static String toString(TaskStatus status) {
-		switch (status) {
-		case UNKNOWN: return "unknown";
-		case PENDING: return "pending";
-		case READY: return "ready";
-		case RUNNING: return "running";
-		case FINISHED: return "finished";
-		default: return "?";
-		}
-	}
+	// TODO: implement this class
 }

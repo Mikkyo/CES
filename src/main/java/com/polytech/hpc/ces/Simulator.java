@@ -21,10 +21,33 @@ package com.polytech.hpc.ces;
 
 /**
  * CES base class.
- * @param args Program arguments.
  */
-public class App {
-	public static void main(String[] args) {
-		System.out.println("CES");
+public class Simulator {
+	
+	private static int time;
+	
+	public Simulator() {
+		time = 0;
 	}
+	
+	public static void main(String[] args) {
+		new Simulator();
+		while (!isFinished()) {
+			time++;
+			// update all app
+			// update rm
+		}
+	}
+	
+	public static int getTime() {
+		return time;
+	}
+	
+	private static boolean isFinished() {
+		for (Application app : applications) {
+			if (!app.isFinished()) return false;
+		}
+	}
+	
+	
 }

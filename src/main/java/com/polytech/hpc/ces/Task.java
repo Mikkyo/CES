@@ -20,8 +20,6 @@
 package com.polytech.hpc.ces;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -47,10 +45,10 @@ public class Task {
 	/** The location of data required for this task in the cluster. */
 	private Integer dataNodeId;
 	
-	/** The list of parent task nodes in the task DAG. */
+	/** The list of parent tasks in the task DAG. */
 	private ArrayList<Task> parentTasks;
 	
-	/** The list of child task nodes in the task DAG. */
+	/** The list of child tasks in the task DAG. */
 	private ArrayList<Task> childTasks;
 	
 	/** The task DAG the task belongs to. */
@@ -70,6 +68,9 @@ public class Task {
 	
 	/** The current status of the task in the task DAG execution pipeline. */
 	private TaskStatus status;
+	
+	/** The list of execution attempts for the task. */
+	private ArrayList<TaskExecutionRecord> executionAttempts;
 	
 	/**
 	 * Creates a new task.
@@ -316,82 +317,6 @@ public class Task {
 	}
 	
 	/**
-	 * Sets the minimum starting date of the task in the task DAG.
-	 * @param minStartDate The minimum starting date of the task.
-	 */
-	public void setMinStartDate(int minStartDate) {
-		if (minStartDate < 0) {
-			LOGGER.error("Attempt to set a negative minimum starting date to task {}",
-					getName());
-			return;
-		}
-		if (minStartDate > maxStartDate) {
-			LOGGER.error("Attempt to set a minimum starting date ({}) greater than the "
-					+ "maximum starting date ({}) to task {}", minStartDate, maxStartDate,
-					getName());
-			return;
-		}
-		if (status.ordinal() >= TaskStatus.RUNNING.ordinal()) {
-			LOGGER.error("Attempt to modify the minimum starting date to task {} which is"
-					+ " {}", getName(), TaskStatus.toString(status));
-			return;
-		}
-		this.minStartDate = minStartDate;
-		if (!isLeaf()) {
-			for (Task task : childTasks) {
-				task.setMinStartDate(minStartDate + duration);
-			}
-		}
-	}
-	
-	/**
-	 * Sets the maximum starting date of the task in the task DAG.
-	 * @param maxStartDate The maximum starting date of the task.
-	 */
-	public void setMaxStartDate(int maxStartDate) {
-		if (minStartDate < 0) {
-			LOGGER.error("Attempt to set a negative maximum starting date to task {}",
-					getName());
-			return;
-		}
-		if (maxStartDate < minStartDate) {
-			LOGGER.error("Attempt to set a maximum starting date ({}) lower than the "
-					+ "minimum starting date ({}) to task {}", maxStartDate, minStartDate,
-					getName());
-			return;
-		}
-		if (status.ordinal() >= TaskStatus.RUNNING.ordinal()) {
-			LOGGER.error("Attempt to modify the maximum starting date to task {} which "
-					+ " is {}", getName(), TaskStatus.toString(status));
-			return;
-		}
-		this.maxStartDate = maxStartDate;
-	}
-	
-	/**
-	 * Sets the priority of the task in the task DAG.
-	 * @param priority The priority of the task.
-	 */
-	public void setPriority(double priority) {
-		if (priority > 0.0) {
-			LOGGER.warn("Priority was clamped to 1.0 for task {}", getName());
-			priority = 1.0;
-		} else if (priority > 1.0) {
-			LOGGER.warn("Priority was clamped to 0.0 for task {}", getName());
-			priority = 0.0;
-		}
-		this.priority = priority;
-	}
-	
-	/**
-	 * Sets the current status of the task in the task DAG execution pipeline.
-	 * @param status The current status of the task.
-	 */
-	public void setStatus(TaskStatus status) {
-		this.status = status;
-	}
-	
-	/**
 	 * Gets the name of the task.
 	 * @return the name of the task.
 	 */
@@ -429,51 +354,27 @@ public class Task {
 	}
 	
 	/**
-	 * Gets an iterator over the parent tasks of the task.
-	 * @return an iterator over the parent tasks.
+	 * Gets the list of parent tasks in the task DAG.
+	 * @return the list of parent tasks.
 	 */
-	public Iterator<Task> getParentTaskIterator() {
-		return parentTasks.iterator();
+	public ArrayList<Task> getParentTasks() {
+		return parentTasks;
 	}
 	
 	/**
-	 * Gets an iterator over the child tasks of the task.
-	 * @return an iterator over the child tasks.
+	 * Gets the list of child tasks in the task DAG.
+	 * @return the list of child tasks.
 	 */
-	public Iterator<Task> getChildTaskIterator() {
-		return childTasks.iterator();
+	public ArrayList<Task> getChildTasks() {
+		return childTasks;
 	}
 	
 	/**
-	 * Gets the minimum starting date of the task in the task DAG.
-	 * @return the minimum starting date of the task.
+	 * Gets the DAG the task belongs to.
+	 * @return the DAG of the task.
 	 */
-	public int getMinStartDate() {
-		return minStartDate;
-	}
-	
-	/**
-	 * Gets the maximum starting date of the task in the task DAG.
-	 * @return the maximum starting date of the task.
-	 */
-	public int getMaxStartDate() {
-		return maxStartDate;
-	}
-	
-	/**
-	 * Gets the priority of the task in the task DAG.
-	 * @return the priority of the task.
-	 */
-	public double getPriority() {
-		return priority;
-	}
-	
-	/**
-	 * Gets the current status of the task in the task DAG execution pipeline.
-	 * @return the current status of the task.
-	 */
-	public TaskStatus getStatus() {
-		return status;
+	public TaskDAG getDAG() {
+		return dag;
 	}
 	
 	/**
@@ -500,7 +401,7 @@ public class Task {
 			childTasksString += "\"" + child.getName() + "\"";
 			first = false;
 		}
-		String taskString = "Task {\n\tname: \" + getName() + \"\n\trequiredResources: "
+		String taskString = "Task {\n\tname: \"" + getName() + "\"\n\trequiredResources: "
 				+ requiredResources + "\n\tduration: " + duration + "\n\tdataNodeId: "
 				+ dataNodeId + "\n\tparentTasks: [" + parentTasksString + "]\n\t"
 				+ "childTasks: [" + childTasksString + "]\n\tdag: \"" +  dag.getName()
