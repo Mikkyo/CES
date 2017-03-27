@@ -1,7 +1,7 @@
 /* 
  * This source file is part of CES.
  * 
- * Copyright(C) 2015 Nicolas Gougeon
+ * Coyright(C) 2015 Nicolas Gougeon
  *
  * CES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with CES.  If not, see <http://www.gnu.org/licenses/>.
+ * along with HelloAnt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package com.polytech.hpc.ces;
