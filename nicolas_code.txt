@@ -1,0 +1,601 @@
+/*******************************************************************************
+ *
+ * Common
+ *
+ ******************************************************************************/
+
+function Resource(vcores, memory) {
+    this.vcores = vcores || 0;
+    this.memory = memory || 0;
+}
+
+Resource.prototype = {
+
+    constructor: Resource,
+
+    set: function (vcores, memory) {
+        this.vcores = vcores;
+        this.memory = memory;
+        return this;
+    },
+
+    copy: function (res) {
+        this.vcores = res.vcores;
+        this.memory = res.memory;
+        return this;
+    },
+
+    add: function (res) {
+        this.vcores += res.vcores;
+        this.memory += res.memory;
+        return this;
+    },
+
+    sub: function (res) {
+        this.vcores -= res.vcores;
+        this.memory -= res.memory;
+        return this;
+    },
+
+    mul: function (s) {
+        this.vcores *= s;
+        this.memory *= s;
+        return this;
+    },
+
+    div: function (s) {
+        this.vcores /= s;
+        this.memory /= s;
+        return this;
+    },
+
+    // this is not a strict comparison
+    greaterThan: function (res) {
+        return this.vcores > res.vcores || this.memory > res.memory;
+    },
+
+    // this is not a strict comparison
+    lessThan: function (res) {
+        return this.vcores < res.vcores || this.memory < res.memory;
+    },
+
+    greaterThanStrict: function (res) {
+        return this.vcores > res.vcores && this.memory > res.memory;
+    },
+
+    lessThanStrict: function (res) {
+        return this.vcores < res.vcores && this.memory < res.memory;
+    },
+
+    clone: function () {
+        return new this.constructor().copy(this);
+    }
+
+};
+
+
+function Container(res, node, app, basePriority) {
+    this.capacity = res;
+    this.node = node;
+    this.app = app;
+
+    this.basePriority = basePriority; // natural priority
+    this.priority = basePriority; // real priority
+
+    this.tasks = [];
+    this.lastUsed = 0;
+}
+
+Container.prototype = {
+
+    preempt: function () { // BAD
+        this.node.removeContainer(container);
+        this.app.removeContainer(container);
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            this.tasks[i].preempt();
+        }
+    },
+
+    update: function (simDate) {
+        // everythin is on p.37, written differently.
+        var A = 0.0;
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            A = Math.max(A, Math.pow(Math.min(this.tasks[i].progress, 1.0), 1/4)); // BTW min, not max
+        }
+        this.priority = A * this.basePriority;
+    }
+
+};
+
+function sortPerPriority(a, b) {
+    return b.priority - a.priority;
+}
+
+// BAD
+function Reservation(res, priority, tasks) {
+    this.resource = res;
+    this.priority = priority;
+
+    this.tasks = tasks; // BAD
+
+    this.container = null;
+}
+
+/*******************************************************************************
+ *
+ * User side
+ *
+ ******************************************************************************/
+
+// Criticity score constants
+var CRIT_KD    = 0.2; // weight for the duration crit.
+var CRIT_D_MAX = 6;   // Max duration before duration crit stops.
+var CRIT_KR    = 0.8; // weight for the delay crit.
+var CRIT_R_MAX = 40;  // Max delay before delay crit stops.
+
+// Task status
+var TASK_UNKNOWN   = 0;
+var TASK_PENDING   = 1;
+var TASK_READY     = 2;
+var TASK_SCHEDULED = 3;
+var TASK_RUNNING   = 4;
+var TASK_FINISHED  = 5;
+
+function Task(resource, duration, parentTasks, childTasks) {
+    this.resource = resource;
+    this.duration = duration;
+
+    this.parentTasks = parentTasks;
+    this.childTasks = childTasks;
+
+    this.minStartDate = 0;
+    this.maxStartDate = Infinity;
+
+    this.startDate = -1;
+    this.progress = 0.0;
+    this.criticality = 0.0;
+
+    this.container = null;
+    this.status = TASK_UNKNOWN;
+}
+
+Task.prototype = {
+
+    isRoot: function () {
+        return !this.parentTasks.length;
+    },
+
+    isLeaf: function () {
+        return !this.childTasks.length;
+    },
+
+    isFinished: function () {
+        return this.status === TASK_FINISHED;
+    },
+
+    isReady: function () {
+        return this.status === TASK_READY;
+    },
+
+    isCurrentRoot: function () {
+        return this.status < TASK_FINISHED && this.status > TASK_PENDING;
+    },
+
+    resetStartDates: function () {
+        this.minStartDate = 0;
+        this.maxStartDate = Infinity;
+    },
+
+    setMinStartDate: function (date) {
+        if (this.isFinished()) return;
+        this.minStartDate = Math.max(this.minStartDate, date);
+        for (var i = 0, len = this.childTasks.length; i < len; i++) {
+            this.childTasks[i].setMinStartDate(this.minStartDate + this.duration);
+        }
+    },
+
+    setMaxStartDate: function (date) {
+        if (this.isFinished()) return;
+        this.maxStartDate = Math.min(this.maxStartDate, date);
+        for (var i = 0, len = this.parentTasks.length; i < len; i++) {
+            var parentTask = this.parentTasks[i];
+            parentTask.setMaxStartDate(this.maxStartDate - parentTask.duration);
+        }
+    },
+
+    start: function (container, simDate) {
+        this.startDate = simDate;
+        this.container = container;
+        this.status = TASK_RUNNING;
+    },
+
+    preempt: function () {
+        if (this.status === TASK_RUNNING) {
+            this.startDate = -1;
+            this.progress = 0.0;
+            this.criticality = 0.0;
+            this.container = null;
+            this.status = TASK_READY;
+        }
+    },
+
+    update: function (simDate) {
+        this.criticality = CRIT_KD * Math.min(this.duration / CRIT_D_MAX, 1.0)
+            + CRIT_KR * Math.max(1.0 - (this.maxStartDate - this.minStartDate) / CRIT_R_MAX, 0.0);
+        this.criticality /= CRIT_KD + CRIT_KR; // normalize between [0, 1]
+
+        if (this.status === TASK_RUNNING) {
+            if (simDate - this.startDate === this.duration) {
+                this.status = TASK_FINISHED;
+                for (var i = 0, len = this.childTasks.length; i < len; i++) {
+                    this.childTasks[i].status = TASK_READY;
+                }
+            }
+            this.progress = (simDate - this.startDate) / this.duration;
+        }
+    }
+
+};
+
+function TaskDAG(tasks) {
+    this.tasks = tasks;
+}
+
+TaskDAG.prototype = {
+
+    getRootTasks: function () {
+        var rootTasks = [];
+
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            if (this.tasks[i].isRoot()) {
+                rootTasks.push(this.tasks[i]);
+            }
+        }
+
+        return rootTasks;
+    },
+
+    getLeafTasks: function () {
+        var leafTasks = [];
+
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            if (this.tasks[i].isLeaf()) {
+                leafTasks.push(this.tasks[i]);
+            }
+        }
+
+        return leafTasks;
+    },
+
+    getReadyTasks: function () {
+        var readyTasks = [];
+
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            if (this.tasks[i].isReady()) {
+                readyTasks.push(this.tasks[i]);
+            }
+        }
+
+        return readyTasks;
+    },
+
+    getCurrentTasks: function () {
+        var curTasks = [];
+
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            if (this.tasks[i].isCurrentRoot()) {
+                curTasks.push(this.tasks[i]);
+            }
+        }
+
+        return curTasks;
+    },
+
+    areAllTasksFinished: function () {
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            if (!this.tasks[i].isFinished()) {
+                return false;
+            }
+        }
+        return true;
+    },
+
+    init: function () {
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            this.tasks[i].status = TASK_PENDING;
+        }
+
+        var rootTasks = this.getRootTasks();
+        for (i = 0, len = rootTasks.length; i < len; i++) {
+            rootTasks[i].status = TASK_READY;
+        }
+    },
+
+    // deep first
+    update: function (simDate) {
+        // reset start dates
+        for (var i = 0, len = this.tasks.length; i < len; i++) {
+            this.tasks[i].resetStartDates();
+        }
+
+        // top-down: update min start dates
+        var curTasks = this.getCurrentTasks();
+        for (var i = 0, len = curTasks.length; i < len; i++) {
+            curTasks[i].setMinStartDate(simDate);
+        }
+
+        // compute overall max end date
+        var maxEndDate = 0;
+        var leafTasks = this.getLeafTasks();
+        for (i = 0, len = leafTasks.length; i < len; i++) {
+            var leafTask = leafTasks[i];
+            maxEndDate = Math.max(leafTask.minStartDate + leafTask.duration, maxEndDate);
+        }
+
+        // bottom-up: update max start date
+        for (i = 0, len = leafTasks.length; i < len; i++) {
+            var leafTask = leafTasks[i];
+            leafTask.setMaxStartDate(maxEndDate - leafTask.duration);
+        }
+
+        // update the criticality of tasks
+        for (i = 0, len = this.tasks.length; i < len; i++) {
+            this.tasks[i].update(simDate);
+        }
+    },
+
+}
+
+var APP_ALGO_NAIVE = 1;
+var APP_ALGO_SMART = 2;
+
+var SEUIL_COMPAT = 0.2;
+var RES_MAX_WAIT_TIME = Infinity;
+var RES_MAX_UNUSED_TIME = 10;
+
+function Application(dag, algo) {
+    this.dag = dag;
+    this.dag.init(); // setup task status
+
+    this.containers = [];
+    this.terminated = false;
+
+    this.algo = algo || APP_ALGO_SMART; // smart algo by default
+
+    this.rm; // just to be able to communicate with RM, but this is BAD
+}
+
+Application.prototype = {
+
+    getUsedRes: function () {
+        var res = new Resource();
+        for (var i = 0, len = this.containers.length; i < len; i++) {
+            res.add(this.containers[i].capacity);
+        }
+        return res;
+    },
+
+    addContainer: function (reservation, simDate) { // BAD
+        var container = reservation.container;
+        var tasks = reservation.tasks;
+
+        // start tasks
+        for (var i = 0, len = tasks.length; i < len; i++) {
+            tasks[i].start(container, simDate); // BAD
+        }
+
+        this.containers.push(container);
+    },
+
+    removeContainer: function (container) {
+        // a container is preempted
+        var index = this.containers.indexOf(container);
+        if (index > -1) {
+            this.containers.splice(index, 1);
+            // tasks are already notified
+        }
+    },
+
+    update: function (simDate) {
+        if (this.terminated) return;
+
+        this.dag.update(simDate);
+
+        // update resource priorities
+        if (this.algo === APP_ALGO_SMART) {
+            for (var i = 0, len = this.containers.length; i < len; i++) {
+                this.containers[i].update(simDate);
+            }
+        }
+
+        // make reservations
+        var readyTasks = this.dag.getReadyTasks();
+        // NO WE HAVE TO CHECK FOR AVAILABLE CONTAINERS
+        for (var i = 0, len = readyTasks.length; i < len; i++) {
+            var readyTask = readyTasks[i];
+            var reservation = new Reservation(readyTask.resource, readyTask.criticality, [readyTask]); // REALLY BAD
+            this.rm.reserve(this, reservation); // REALLY BAD
+        }
+
+        this.terminated = this.dag.areAllTasksFinished();
+    },
+
+};
+
+function ApplicationRequest(app, date) {
+    this.application = app;
+    this.requestDate = date;
+}
+
+/*******************************************************************************
+ *
+ * Cluster side
+ *
+ ******************************************************************************/
+
+function Node(maxRes) {
+    this.maxRes = maxRes; // read only
+    this.containers = [];
+}
+
+Node.prototype = {
+
+    getUsedRes: function () {
+        var res = new Resource();
+        for (var i = 0, len = this.containers.length; i < len; i++) {
+            res.add(this.containers[i].capacity);
+        }
+        return res;
+    },
+
+    getAvailRes: function () {
+        return new Resource().copy(this.maxRes).sub(this.getUsedRes());
+    },
+
+    addContainer: function (container) {
+        this.containers.push(container);
+    },
+
+    removeContainer: function (container) {
+        // a container is preempted
+        var index = this.containers.indexOf(container);
+        if (index > -1) {
+            this.containers.splice(index, 1);
+        }
+    }
+
+};
+
+
+
+function ResourceManager(nodes, resPerNode) {
+    this.nodes = nodes;
+    this.totalRes = resPerNode.clone().mul(this.nodes.length);
+
+    this.apps = []; // consider those as jobs in a fair share queue
+    this.nextAppId = 0; // an identifier to set for each task
+
+    this.containersPerApp = [];
+    this.reservationsPerApp = [];
+}
+
+ResourceManager.prototype = {
+
+    addApplication: function (app) {
+        this.apps.push(app);
+        app.id = this.nextAppId++;
+        app.rm = this;
+        this.containersPerApp[app.id] = [];
+        this.reservationsPerApp[app.id] = [];
+    },
+
+    reserve: function (app, reservation) { // BAD
+        this.reservationsPerApp[app.id].push(reservation);
+    },
+
+    preemptContainers: function () {
+        // share available resources among apps
+        // NO, it's not that! As long as some space is available -> you can allocate.
+        // This type of test should be done during the reservation!
+        var resPerApp = new Resource().copy(this.totalRes).div(this.apps.length);
+
+        // preempt overflowing containers
+        for (var i = 0, len = this.apps.length; i < len; i++) {
+            var app = this.apps[i];
+            var containers = this.containersPerApp[i];
+
+            var overflowing = app.getUsedRes().greaterThan(resPerApp);
+            if (overflowing) {
+                // sort containers by priority desc
+                containers.sort(sortPerPriority);
+
+                while (overflowing) {
+                    containers.pop().preempt(); // preempt lowest priority resource
+
+                    overflowing = app.getUsedRes().greaterThan(resPerApp);
+                }
+            }
+        }
+    },
+
+    fulfilReservations: function (simDate) {
+        for (i = 0, len = this.apps.length; i < len; i++) {
+            var app = this.apps[i];
+            var reservations = this.reservationsPerApp[app.id];
+
+            for (var j = 0, len = reservations.length; j < len; j++) {
+                var reservation = reservations[j];
+
+                // find an available node...
+                for (var k = 0, len2 = this.nodes.length; k < len2; k++) { // REALLY BAD
+                    if (this.nodes[k].getAvailRes().greaterThanStrict(reservation.resource)) {
+                        var node = this.nodes[k];
+
+                        var container = new Container(reservation.resource, node, app, reservation.priority);
+                        this.containersPerApp[app.id].push(container);
+                        node.addContainer(container);
+
+                        reservation.container = container;
+                        app.addContainer(reservation, simDate); // BAD...
+
+                        reservations.splice(j, 1); // reservation is fulfilled, remove it
+
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+};
+
+
+function Simulator(nbNodes, resPerNode, appRequests) {
+    // build cluster
+    var nodes = [];
+    for (var i = 0; i < nbNodes; i++) {
+        nodes[i] = new Node(resPerNode);
+    }
+
+    this.rm = new ResourceManager(nodes, resPerNode);
+    this.appRequests = appRequests;
+    this.apps = [];
+
+    this.simDate = 0;
+}
+
+Simulator.prototype = {
+
+    step: function () {
+        // 1 - add applications requested by users
+        for (var i = 0, len = this.appRequests.length; i < len; i++) {
+            var req = this.appRequests[i];
+            if (req.requestDate === this.simDate) {
+                // attempt to start app
+                this.rm.addApplication(req.application);
+                this.apps.push(req.application);
+            }
+        }
+
+        // 2 - preempt resources (fair-share)
+        this.rm.preemptContainers();
+
+        // 3 - update application states + make reservations
+        for (i = 0, len = this.apps.length; i < len; i++) {
+            this.apps[i].update(this.simDate);
+        }
+
+        // 4 - fulfil app reservations
+        this.rm.fulfilReservations(this.simDate);
+
+        // 5 - increment simulation date
+        this.simDate++;
+    },
+
+    steps: function (nbIters) {
+        for (var i = 0; i < nbIters; i++) {
+            this.step();
+        }
+    }
+
+};
